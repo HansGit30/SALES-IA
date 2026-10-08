@@ -1,0 +1,73 @@
+name: salesia-release
+
+x-api-environment: &api-environment
+  DATABASE_URL: postgresql+psycopg://salesia:${POSTGRES_PASSWORD:?Define POSTGRES_PASSWORD}@db:5432/salesia
+  SECRET_KEY: ${SECRET_KEY:?Define SECRET_KEY}
+  ENVIRONMENT: production
+  CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:8080}
+  ACCESS_TOKEN_MINUTES: ${ACCESS_TOKEN_MINUTES:-60}
+  AUTH_WINDOW_SECONDS: ${AUTH_WINDOW_SECONDS:-900}
+  AUTH_ACCOUNT_ATTEMPTS: ${AUTH_ACCOUNT_ATTEMPTS:-10}
+  AUTH_IP_ATTEMPTS: ${AUTH_IP_ATTEMPTS:-100}
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: salesia
+      POSTGRES_USER: salesia
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Define POSTGRES_PASSWORD}
+    volumes:
+      - salesia_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U salesia -d salesia"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+  bootstrap:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    environment:
+      <<: *api-environment
+      ADMIN_EMAIL: ${ADMIN_EMAIL:?Define ADMIN_EMAIL}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:?Define ADMIN_PASSWORD}
+      ADMIN_NAME: ${ADMIN_NAME:-Administración SalesIA}
+      COMPANY_NAME: ${COMPANY_NAME:-SalesIA Enterprise}
+      COMPANY_CURRENCY: ${COMPANY_CURRENCY:-PEN}
+    command: ["sh", "-c", "alembic upgrade head && python -m app.db.bootstrap"]
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: "no"
+  api:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    environment: *api-environment
+    # API is reachable only by containers on this Compose network.
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--proxy-headers", "--forwarded-allow-ips", "*"]
+    depends_on:
+      bootstrap:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/ready', timeout=15)"]
+      interval: 20s
+      timeout: 16s
+      retries: 3
+      start_period: 20s
+    restart: unless-stopped
+  web:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    ports:
+      - "127.0.0.1:${WEB_PORT:-8080}:80"
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  salesia_pgdata:

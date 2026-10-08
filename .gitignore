@@ -1,0 +1,22 @@
+node_modules/
+dist/
+.env
+.venv/
+__pycache__/
+*.py[cod]
+
+.env.*
+!.env.example
+!.env.*.example
+.pytest_cache/
+*.log
+.vercel/
+backend/tests/.ui-fixture.json
+backend/tests/.ui-stop
+
+# Local artifacts and database backups
+backups/
+*.dump
+*.backup
+*.tsbuildinfo
+*.egg-info/
