@@ -4,6 +4,7 @@ import ModuleSearch from "./ModuleSearch";
 import ExecutiveHero, { DataSculpture } from "./ExecutiveHero";
 import ServiceStatus from "./ServiceStatus";
 import AccountSecurity from "./AccountSecurity";
+import DispersionAnalysis from "./DispersionAnalysis";
 import { lazy, Suspense, useEffect, useMemo, useState, type FormEvent } from "react";
 import { Activity, ArrowDownRight, ArrowUpRight, Boxes, ChevronDown, CircleHelp, CreditCard, FileBarChart2, LayoutDashboard, LogOut, Menu, Package, Plus, Settings2, ShieldCheck, Sparkles, Users, X } from "lucide-react";
 import { api, clearToken, getToken, type SessionUser, type Summary, type Sale, type Insight, type InventoryRow } from "./services/api";
@@ -20,12 +21,38 @@ import InsightsPage from "./InsightsPage";
 import ReportsPage from "./ReportsPage";
 import SettingsPage from "./SettingsPage";
 
-type Page = "branches" | "security" | "dashboard" | "sales" | "orders" | "customers" | "products" | "categories" | "employees" | "inventory" | "analytics" | "insights" | "reports" | "settings";
-const access: Record<string, Page[]> = { admin: ["dashboard","sales","orders","customers","products","categories","employees","inventory","analytics","insights","reports","settings"], manager: ["dashboard","sales","orders","customers","products","categories","employees","inventory","analytics","insights","reports"], analyst: ["dashboard","analytics","insights","reports"], seller: ["dashboard","sales","orders","customers","products","categories"], warehouse: ["dashboard","products","categories","inventory"] };
+type Page = "branches" | "security" | "dashboard" | "sales" | "orders" | "customers" | "products" | "categories" | "employees" | "inventory" | "analytics" | "dispersion" | "insights" | "reports" | "settings";
+const access: Record<string, Page[]> = { admin: ["dashboard","sales","orders","customers","products","categories","employees","inventory","analytics","dispersion","insights","reports","settings"], manager: ["dashboard","sales","orders","customers","products","categories","employees","inventory","analytics","dispersion","insights","reports"], analyst: ["dashboard","analytics","dispersion","insights","reports"], seller: ["dashboard","sales","orders","customers","products","categories"], warehouse: ["dashboard","products","categories","inventory"] };
 const money = (value: string | number) => new Intl.NumberFormat("es-PE", { style: "currency", currency: "PEN", maximumFractionDigits: 2 }).format(Number(value || 0));
 const nav = [
-  { group: "GENERAL", items: [{ id: "branches", label: "Sucursales", icon: Boxes }, { id: "dashboard", label: "Panel general", icon: LayoutDashboard }, { id: "sales", label: "Ventas", icon: CreditCard }, { id: "orders", label: "Pedidos", icon: Package }, { id: "customers", label: "Clientes", icon: Users }, { id: "products", label: "Productos", icon: Package }, { id: "categories", label: "Categorías", icon: Boxes }, { id: "employees", label: "Vendedores", icon: Users }, { id: "inventory", label: "Inventario", icon: Boxes }] },
-  { group: "ANÁLISIS", items: [{ id: "analytics", label: "Analytics", icon: Activity }, { id: "insights", label: "Insights", icon: Sparkles }, { id: "reports", label: "Reportes", icon: FileBarChart2 }] },
+  {
+    group: "OPERACIONES",
+    items: [
+      { id: "dashboard", label: "Panel general", icon: LayoutDashboard },
+      { id: "sales", label: "Ventas", icon: CreditCard },
+      { id: "orders", label: "Pedidos", icon: Package },
+      { id: "inventory", label: "Inventario", icon: Boxes },
+    ],
+  },
+  {
+    group: "MANTENIMIENTO",
+    items: [
+      { id: "branches", label: "Sucursales", icon: Boxes },
+      { id: "customers", label: "Clientes", icon: Users },
+      { id: "products", label: "Productos", icon: Package },
+      { id: "categories", label: "Categorías", icon: Boxes },
+      { id: "employees", label: "Vendedores", icon: Users },
+    ],
+  },
+  {
+    group: "ANÁLISIS",
+    items: [
+      { id: "analytics", label: "Analytics", icon: Activity },
+      { id: "dispersion", label: "Varianza y desviación", icon: FileBarChart2 },
+      { id: "insights", label: "Insights", icon: Sparkles },
+      { id: "reports", label: "Reportes", icon: FileBarChart2 },
+    ],
+  },
 ] as const;
 
 export default function App() {
@@ -33,7 +60,7 @@ export default function App() {
     if (!getToken()) return null;
     try { return JSON.parse(localStorage.getItem("salesia.user") ?? "null"); } catch { return null; }
   });
-  const readPage=()=>{const value=window.location.hash.replace(/^#\/?/,"");return (["branches","security","dashboard","sales","orders","customers","products","categories","employees","inventory","analytics","insights","reports","settings"] as string[]).includes(value)?value as Page:"dashboard";};
+  const readPage=()=>{const value=window.location.hash.replace(/^#\/?/,"");return (["branches","security","dashboard","sales","orders","customers","products","categories","employees","inventory","analytics","dispersion","insights","reports","settings"] as string[]).includes(value)?value as Page:"dashboard";};
   const [requestedPage, setRequestedPage] = useState<Page>(readPage);
   const setPage=(next:Page)=>{setRequestedPage(next);if(window.location.hash!=="#/"+next)window.location.hash="/"+next;};
   useEffect(()=>{const changed=()=>{setRequestedPage(readPage());setMobileOpen(false);};window.addEventListener("hashchange",changed);return()=>window.removeEventListener("hashchange",changed);},[]);
@@ -48,9 +75,8 @@ export default function App() {
   useEffect(()=>{document.title=(page==="dashboard"?"Panel general":"SalesIA")+" · SalesIA Enterprise";},[page]);
   if (!user) return <Login onLogin={(u) => setUser(u)} />;
   if(user.must_change_password) return <main className="page-content"><div className="page-heading"><div><h1>Protege tu cuenta</h1><p>Tu contraseña es temporal. Cámbiala para acceder al espacio de trabajo.</p></div><button className="btn btn-light" onClick={logout}>Salir</button></div><AccountSecurity /></main>;
-  const labels: Record<Page, string> = { branches: "Sucursales", security: "Mi seguridad", dashboard: "Panel general", sales: "Ventas", orders: "Pedidos", customers: "Clientes", products: "Productos", categories: "Categorías", employees: "Vendedores", inventory: "Inventario", analytics: "Analytics", insights: "Insights", reports: "Reportes", settings: "Configuración" };
+  const labels: Record<Page, string> = { branches: "Sucursales", security: "Mi seguridad", dashboard: "Panel general", sales: "Ventas", orders: "Pedidos", customers: "Clientes", products: "Productos", categories: "Categorías", employees: "Vendedores", inventory: "Inventario", analytics: "Analytics", dispersion: "Varianza y desviación", insights: "Insights", reports: "Reportes", settings: "Configuración" };
   const title = labels[page];
-
 
   const visibleNav = nav.map(section => ({ ...section, items: section.items.filter(item => allowed.includes(item.id as Page)) })).filter(section => section.items.length > 0);
   return <div className="app-shell">
@@ -60,7 +86,7 @@ export default function App() {
       <nav>
         {visibleNav.map(section => <div className="nav-section" key={section.group}>
           <p>{section.group}</p>
-          {section.items.map(item => <button key={item.id} aria-current={page===item.id?"page":undefined} className={page === item.id ? "nav-item active" : "nav-item"} onClick={() => { setPage(item.id); setMobileOpen(false); }}><item.icon size={17} strokeWidth={1.8} /><span>{item.label}</span>{item.id === "insights" && <i className="nav-dot" />}</button>)}
+          {section.items.map(item => <button key={item.id} aria-current={page===item.id?"page":undefined} className={page === item.id ? "nav-item active" : "nav-item"} onClick={() => { setPage(item.id as Page); setMobileOpen(false); }}><item.icon size={17} strokeWidth={1.8} /><span>{item.label}</span>{item.id === "insights" && <i className="nav-dot" />}</button>)}
         </div>)}
       </nav>
       <div className="sidebar-bottom">
@@ -75,11 +101,11 @@ export default function App() {
       <div className="page-content"><div className="page-heading"><div><div className="eyebrow">{page === "dashboard" ? new Intl.DateTimeFormat("es-PE", { weekday: "long", day: "numeric", month: "long", year: "numeric" }).format(new Date()).toUpperCase() : "GESTIÓN COMERCIAL"}</div><h1>{page === "dashboard" ? <>Buenos días, {user.full_name.split(" ")[0]} <span className="wave">✦</span></> : title}</h1><p>{page === "dashboard" ? "Aquí tienes el resumen de actividad de tu negocio." : pageDescription(page)}</p></div><div className="heading-actions">{page === "dashboard" && user.role !== "warehouse" && <label className="btn btn-light period-select"><span className="calendar-dot" /><select aria-label="Periodo del dashboard" value={range} onChange={e=>setRange(Number(e.target.value))}><option value={7}>Últimos 7 días</option><option value={30}>Últimos 30 días</option><option value={90}>Últimos 90 días</option><option value={365}>Último año</option></select><ChevronDown size={15}/></label>}{((page === "customers" && ["admin","seller"].includes(user.role)) || (page === "products" && user.role === "admin") || (page === "categories" && user.role === "admin")) && <button className="btn btn-primary" onClick={() => window.dispatchEvent(new Event(`salesia:create-${page}`))}><Plus size={16} />{page === "customers" ? "Nuevo cliente" : page === "categories" ? "Nueva categoría" : "Nuevo producto"}</button>}</div></div>
       {helpOpen&&<section className="panel corporate-guide"><div className="panel-heading"><div><h2>Tu flujo de trabajo en SalesIA</h2><p>De la operación diaria a las decisiones comerciales</p></div><button className="icon-button" aria-label="Cerrar guía" onClick={()=>setHelpOpen(false)}><X size={18}/></button></div><div className="guide-steps">{[["01","Prepara el catálogo","Registra categorías, productos y clientes."],["02","Registra operaciones","Ingresa existencias y confirma ventas o pedidos."],["03","Analiza resultados","Consulta indicadores, insights y reportes del periodo."]].map(([n,title,copy])=><article key={n}><span>{n}</span><h3>{title}</h3><p>{copy}</p></article>)}</div><p className="form-note">Las opciones disponibles dependen de tu rol. Para recuperar el acceso, contacta al administrador de tu empresa.</p></section>}
       {page === "dashboard"?<ExecutiveHero role={user.role}/>:<ModuleOverview page={page}/>}
-      {page === "branches" ? <Suspense fallback={<div className="panel table-empty" role="status">Cargando mapa de sucursales…</div>}><BranchesPage canManage={user.role==="admin"}/></Suspense> : page === "security" ? <AccountSecurity /> : page === "dashboard" ? (user.role === "warehouse" ? <Dashboard analytics={false} role={user.role} range={range} /> : <BusinessDashboard days={range} role={user.role} />) : page === "analytics" ? <AnalyticsPage canRunProbability={["admin","manager","analyst"].includes(user.role)} /> : page === "orders" ? <OrdersPage canManage={["admin","seller"].includes(user.role)} /> : page === "sales" ? <SalesPage canCreate={["admin","seller"].includes(user.role)} /> : page === "inventory" ? <InventoryPage canAdjust={["admin","warehouse"].includes(user.role)} /> : page === "insights" ? <InsightsPage canGenerate={["admin","manager","analyst"].includes(user.role)} /> : page === "reports" ? <ReportsPage /> : page === "settings" && user.role === "admin" ? <SettingsPage /> : page === "employees" ? <Employees canCreate={user.role === "admin"} /> : page === "categories" ? <CategoriesPage canCreate={user.role === "admin"} /> : page === "customers" ? <CatalogPage kind="customers" canEdit={["admin","seller"].includes(user.role)} /> : page === "products" ? <ProductCatalog canCreate={user.role === "admin"} /> : <ComingSoon page={page} />}
+      {page === "branches" ? <Suspense fallback={<div className="panel table-empty" role="status">Cargando mapa de sucursales…</div>}><BranchesPage canManage={user.role==="admin"}/></Suspense> : page === "security" ? <AccountSecurity /> : page === "dashboard" ? (user.role === "warehouse" ? <Dashboard analytics={false} role={user.role} range={range} /> : <BusinessDashboard days={range} role={user.role} />) : page === "analytics" ? <AnalyticsPage canRunProbability={["admin","manager","analyst"].includes(user.role)} /> : page === "dispersion" ? <DispersionAnalysis /> : page === "orders" ? <OrdersPage canManage={["admin","seller"].includes(user.role)} /> : page === "sales" ? <SalesPage canCreate={["admin","seller"].includes(user.role)} /> : page === "inventory" ? <InventoryPage canAdjust={["admin","warehouse"].includes(user.role)} /> : page === "insights" ? <InsightsPage canGenerate={["admin","manager","analyst"].includes(user.role)} /> : page === "reports" ? <ReportsPage /> : page === "settings" && user.role === "admin" ? <SettingsPage /> : page === "employees" ? <Employees canCreate={user.role === "admin"} /> : page === "categories" ? <CategoriesPage canCreate={user.role === "admin"} /> : page === "customers" ? <CatalogPage kind="customers" canEdit={["admin","seller"].includes(user.role)} /> : page === "products" ? <ProductCatalog canCreate={user.role === "admin"} /> : <ComingSoon page={page} />}
       <footer className="footer"><span>© 2026 SalesIA Enterprise</span><span>Gestión comercial · Analytics</span></footer></div></main></div>;
 }
 
-function pageDescription(page: Page) { return ({ branches: "Explora la cobertura y administra las sedes de tu empresa.", security: "Administra tu contraseña y el acceso a tu cuenta.", orders: "Prepara pedidos y conviértelos en ventas con trazabilidad.", sales: "Consulta y administra las transacciones de tu negocio.", customers: "Administra tu cartera y conoce mejor a tus clientes.", products: "Gestiona tu catálogo, precios y disponibilidad.", categories: "Organiza tu catálogo por familias de productos.", employees: "Administra los perfiles del equipo comercial.", inventory: "Controla existencias y movimientos de almacén.", analytics: "Explora el rendimiento comercial y sus métricas.", insights: "Hallazgos explicables derivados de tus datos.", reports: "Reportes comerciales y estadísticos.", settings: "Administra el acceso y la configuración del espacio de trabajo.", dashboard: "" } as Record<Page, string>)[page]; }
+function pageDescription(page: Page) { return ({ branches: "Explora la cobertura y administra las sedes de tu empresa.", security: "Administra tu contraseña y el acceso a tu cuenta.", orders: "Prepara pedidos y conviértelos en ventas con trazabilidad.", sales: "Consulta y administra las transacciones de tu negocio.", customers: "Administra tu cartera y conoce mejor a tus clientes.", products: "Gestiona tu catálogo, precios y disponibilidad.", categories: "Organiza tu catálogo por familias de productos.", employees: "Administra los perfiles del equipo comercial.", inventory: "Controla existencias y movimientos de almacén.", analytics: "Explora el rendimiento comercial y sus métricas.", dispersion: "Análisis estadístico de dispersión, varianza y desviación estándar.", insights: "Hallazgos explicables derivados de tus datos.", reports: "Reportes comerciales y estadísticos.", settings: "Administra el acceso y la configuración del espacio de trabajo.", dashboard: "" } as Record<Page, string>)[page]; }
 
 function Login({ onLogin }: { onLogin: (user: SessionUser) => void }) {
   const [email, setEmail] = useState(""); const [password, setPassword] = useState(""); const [companyId, setCompanyId] = useState("1"); const [error, setError] = useState(""); const [busy, setBusy] = useState(false);
@@ -96,28 +122,3 @@ function Dashboard({ analytics, role, range }: { analytics: boolean; role: strin
 }
 
 function ComingSoon({page}:{page:Page}){return <section className="panel coming-panel"><div className="coming-icon"><Package size={24}/></div><h2>{pageDescription(page)}</h2><p>Este módulo se incorporará en su fase de desarrollo correspondiente. La navegación ya está preparada.</p><span>EN DESARROLLO · SALESIA ENTERPRISE</span></section>}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
