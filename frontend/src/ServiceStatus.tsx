@@ -11,7 +11,7 @@ export default function ServiceStatus(){
       const current=controller;
       const timeout=window.setTimeout(()=>current.abort(),12000);
       try{
-        const base=import.meta.env.VITE_API_BASE_URL??"http://localhost:8000/api/v1";
+        const base=import.meta.env.VITE_API_BASE_URL??"https://sales-ia-afew.onrender.com/api/v1";
         const url=new URL(base,window.location.href);
         url.pathname=url.pathname.replace(/\/api\/v1\/?$/,"")+"/ready";
         url.search="";url.hash="";

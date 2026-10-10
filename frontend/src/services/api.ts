@@ -3,7 +3,7 @@ import { fetchWithReadRetry } from "./http";
 
 const API =
   import.meta.env.VITE_API_BASE_URL ??
-  "http://localhost:8000/api/v1";
+  "https://sales-ia-afew.onrender.com/api/v1";
 
 const TOKEN_KEY = "salesia.access_token";
 
